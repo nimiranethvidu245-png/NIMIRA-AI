@@ -11,25 +11,20 @@ const { signalCommand } = require("./commands/signal");
 
 
 
-async function startBot(){
-
+async function startBot() {
 
     const { state, saveCreds } =
-    await useMultiFileAuthState("./session");
+        await useMultiFileAuthState("./session");
 
 
 
-    const sock =
-    makeWASocket({
+    const sock = makeWASocket({
 
         auth: state,
 
-        logger:
-        Pino({
-            level:"silent"
-        }),
-
-        printQRInTerminal:true
+        logger: Pino({
+            level: "silent"
+        })
 
     });
 
@@ -44,7 +39,7 @@ async function startBot(){
 
     sock.ev.on(
         "connection.update",
-        (update)=>{
+        (update) => {
 
 
             const {
@@ -55,7 +50,9 @@ async function startBot(){
 
 
 
-            if(qr){
+            if(qr) {
+
+                console.log("Scan QR");
 
                 qrcode.generate(
                     qr,
@@ -68,7 +65,7 @@ async function startBot(){
 
 
 
-            if(connection==="open"){
+            if(connection === "open") {
 
                 console.log(
                     "✅ NIMIRA MD CONNECTED"
@@ -78,19 +75,23 @@ async function startBot(){
 
 
 
-            if(connection==="close"){
+            if(connection === "close") {
 
 
-                const reconnect =
-                lastDisconnect
-                ?.error
-                ?.output
-                ?.statusCode
-                !== DisconnectReason.loggedOut;
+                const shouldReconnect =
+                    lastDisconnect
+                    ?.error
+                    ?.output
+                    ?.statusCode
+                    !== DisconnectReason.loggedOut;
 
 
 
-                if(reconnect){
+                if(shouldReconnect) {
+
+                    console.log(
+                        "♻️ Reconnecting..."
+                    );
 
                     startBot();
 
@@ -108,41 +109,37 @@ async function startBot(){
 
     sock.ev.on(
         "messages.upsert",
-        async ({messages})=>{
+        async ({messages}) => {
 
 
-            const msg =
-            messages[0];
+            const msg = messages[0];
 
 
             if(!msg.message)
-            return;
-
+                return;
 
 
             if(msg.key.fromMe)
-            return;
+                return;
 
 
 
             const text =
-            msg.message.conversation ||
-            msg.message.extendedTextMessage?.text ||
-            "";
+                msg.message.conversation ||
+                msg.message.extendedTextMessage?.text ||
+                "";
 
 
 
             const args =
-            text.trim()
-            .split(/\s+/);
+                text.trim().split(/\s+/);
 
 
 
             if(
-                args[0]
-                ?.toLowerCase()
+                args[0]?.toLowerCase()
                 === ".signal"
-            ){
+            ) {
 
 
                 await signalCommand(
@@ -155,12 +152,10 @@ async function startBot(){
             }
 
 
-
         }
     );
 
 }
-
 
 
 startBot();
