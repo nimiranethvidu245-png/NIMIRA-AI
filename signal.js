@@ -1,115 +1,209 @@
 const axios = require("axios");
 const { analyzeMarket } = require("../lib/analysis");
+const { calculateRisk } = require("../lib/risk");
 
 
-
+// Binance Futures candles
 async function getCandles(symbol) {
 
-  const url =
-    `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=15m&limit=100`;
+    symbol = symbol.toUpperCase();
 
 
-  const res =
+    const url =
+    `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=100`;
+
+
+    const res =
     await axios.get(url);
 
 
-  return res.data.map(c => ({
+    return res.data.map(c => ({
 
-    open: c[1],
-    high: c[2],
-    low: c[3],
-    close: c[4],
-    volume: c[5]
+        open: Number(c[1]),
+        high: Number(c[2]),
+        low: Number(c[3]),
+        close: Number(c[4]),
+        volume: Number(c[5])
 
-  }));
+    }));
 
 }
 
 
 
 
-async function signalCommand(sock, msg, symbol) {
+async function signalCommand(sock, msg, args) {
 
 
-  try {
+    try {
 
 
-    const candles =
-      await getCandles(symbol);
+        if(!args[0]){
+
+            return sock.sendMessage(
+                msg.key.remoteJid,
+                {
+                    text:
+                    "❌ Coin එක දෙන්න\n\nExample:\n.signal BTCUSDT"
+                }
+            );
+
+        }
 
 
-    const result =
-      analyzeMarket(candles);
+
+        const symbol =
+        args[0].toUpperCase();
 
 
 
-    const text =
+        const candles =
+        await getCandles(symbol);
 
-`🤖 NIMIRA MD AI SIGNAL
 
-PAIR: ${symbol}
-TIMEFRAME: M15
 
-SIGNAL: ${result.signal}
+        const result =
+        analyzeMarket(candles);
+
+
+
+        const price =
+        candles.at(-1).close;
+
+
+
+        const risk =
+        calculateRisk(
+            price,
+            result.signal
+        );
+
+
+
+
+        const text =
+
+`🤖 NIMIRA MD FUTURES AI
+
+PAIR:
+${symbol}
+
+TIMEFRAME:
+15M
+
+SIGNAL:
+${result.signal}
 
 CONFIDENCE:
 ${result.confidence}
 
-SCORE:
-${result.score}
+
+💰 TRADE PLAN
+
+ENTRY:
+${risk.entry}
+
+STOP LOSS:
+${risk.stopLoss}
+
+TAKE PROFIT 1:
+${risk.takeProfit1}
+
+TAKE PROFIT 2:
+${risk.takeProfit2}
+
+
 
 📊 INDICATORS
-Trend: ${result.indicators.trend}
-RSI: ${result.indicators.RSI}
+
+EMA:
+${result.indicators.trend}
+
+RSI:
+${result.indicators.RSI}
+
 
 🧠 ICT
-Liquidity: ${result.ict.liquidity}
-BOS: ${result.ict.BOS}
+
+Liquidity:
+${result.ict.liquidity}
+
+BOS:
+${result.ict.BOS}
+
+FVG:
+${result.ict.FVG.type}
+
+
 
 💎 SMC
-Structure: ${result.smc.structure}
 
-📐 FIB
-Zone: ${result.fibonacci.zone}
+Structure:
+${result.smc.structure}
+
+Order Block:
+${result.smc.orderBlock.type}
+
+
+
+📐 FIBONACCI
+
+Zone:
+${result.fibonacci.zone}
+
+
 
 📈 SNR
-Zone: ${result.snr.zone.zone}
 
-🌊 EWC
-Bias: ${result.ewc.marketBias}
+Zone:
+${result.snr.zone.zone}
 
-⚡ Volume
+
+
+📊 VOLUME PROFILE
+
 ${result.volume.signal}
 
-NIMIRA MD AI`;
+
+
+🌊 EWC
+
+Bias:
+${result.ewc.marketBias}
 
 
 
-    await sock.sendMessage(
-      msg.key.remoteJid,
-      { text }
-    );
+⚡ NIMIRA MD`;
 
 
-  } catch(e) {
+
+        await sock.sendMessage(
+            msg.key.remoteJid,
+            {
+                text
+            }
+        );
 
 
-    await sock.sendMessage(
-      msg.key.remoteJid,
-      {
-        text:"❌ Signal error"
-      }
-    );
+    }
+    catch(err){
 
 
-  }
+        await sock.sendMessage(
+            msg.key.remoteJid,
+            {
+                text:
+                "❌ Invalid coin or Binance Futures error"
+            }
+        );
+
+
+    }
 
 }
 
 
 
 module.exports = {
-
-  signalCommand
-
+    signalCommand
 };
