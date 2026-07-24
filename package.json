@@ -1,0 +1,16 @@
+{
+  "name": "NIMIRA-AI",
+  "version": "1.0.0",
+  "description": "Crypto and Gold Signal Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "axios": "latest",
+    "dotenv": "latest",
+    "pino": "latest",
+    "technicalindicators": "latest"
+  }
+}
