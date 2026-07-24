@@ -1,83 +1,166 @@
-require("dotenv").config();
-
 const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason
 } = require("@whiskeysockets/baileys");
 
-const pino = require("pino");
+const Pino = require("pino");
+const qrcode = require("qrcode-terminal");
 
-async function startBot() {
-
-  const { state, saveCreds } = await useMultiFileAuthState("session");
-
-  const sock = makeWASocket({
-    auth: state,
-    logger: pino({ level: "silent" }),
-    browser: ["NIMIRA MD", "Chrome", "1.0.0"]
-  });
-
-  sock.ev.on("creds.update", saveCreds);
-
-  sock.ev.on("connection.update", (update) => {
-    const { connection } = update;
-
-    if (connection === "open") {
-      console.log("✅ NIMIRA MD Connected");
-    }
-
-    if (connection === "close") {
-      console.log("❌ Connection Closed");
-      startBot();
-    }
-  });
+const { signalCommand } = require("./commands/signal");
 
 
-  sock.ev.on("messages.upsert", async ({ messages }) => {
 
-    const msg = messages[0];
+async function startBot(){
 
-    if (!msg.message) return;
 
-    const text =
-      msg.message.conversation ||
-      msg.message.extendedTextMessage?.text ||
-      "";
+    const { state, saveCreds } =
+    await useMultiFileAuthState("./session");
 
-    if (text === ".menu") {
 
-      await sock.sendMessage(
-        msg.key.remoteJid,
-        {
-          text:
-`🤖 NIMIRA MD AI BOT
 
-Commands:
+    const sock =
+    makeWASocket({
 
-.signal BTCUSDT
-.signal ETHUSDT
-.signal XAUUSD
+        auth: state,
 
-Powered by NIMIRA MD`
+        logger:
+        Pino({
+            level:"silent"
+        }),
+
+        printQRInTerminal:true
+
+    });
+
+
+
+    sock.ev.on(
+        "creds.update",
+        saveCreds
+    );
+
+
+
+    sock.ev.on(
+        "connection.update",
+        (update)=>{
+
+
+            const {
+                connection,
+                lastDisconnect,
+                qr
+            } = update;
+
+
+
+            if(qr){
+
+                qrcode.generate(
+                    qr,
+                    {
+                        small:true
+                    }
+                );
+
+            }
+
+
+
+            if(connection==="open"){
+
+                console.log(
+                    "✅ NIMIRA MD CONNECTED"
+                );
+
+            }
+
+
+
+            if(connection==="close"){
+
+
+                const reconnect =
+                lastDisconnect
+                ?.error
+                ?.output
+                ?.statusCode
+                !== DisconnectReason.loggedOut;
+
+
+
+                if(reconnect){
+
+                    startBot();
+
+                }
+
+            }
+
+
         }
-      );
+    );
 
-    }
 
-    if (text === ".ping") {
 
-      await sock.sendMessage(
-        msg.key.remoteJid,
-        {
-          text: "🏓 NIMIRA MD Online"
+
+
+    sock.ev.on(
+        "messages.upsert",
+        async ({messages})=>{
+
+
+            const msg =
+            messages[0];
+
+
+            if(!msg.message)
+            return;
+
+
+
+            if(msg.key.fromMe)
+            return;
+
+
+
+            const text =
+            msg.message.conversation ||
+            msg.message.extendedTextMessage?.text ||
+            "";
+
+
+
+            const args =
+            text.trim()
+            .split(/\s+/);
+
+
+
+            if(
+                args[0]
+                ?.toLowerCase()
+                === ".signal"
+            ){
+
+
+                await signalCommand(
+                    sock,
+                    msg,
+                    args.slice(1)
+                );
+
+
+            }
+
+
+
         }
-      );
-
-    }
-
-  });
+    );
 
 }
+
+
 
 startBot();
